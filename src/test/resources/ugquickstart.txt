@@ -1,0 +1,208 @@
+= Quick Start =
+
+Below are a few examples of how to use Pulp to get content synchronized locally to your server and make it available to systems. The examples assume you have installed and configured Pulp according to the [wiki:UGInstallation Installation Guide].
+
+----
+
+== Basic Usage == #basic
+
+The starting point for a new Pulp installation is the `pulp-admin` command. Help information is available for both the `pulp-admin` and `pulp-consumer` scripts:
+
+{{{
+$ pulp-admin --help
+Usage: pulp-admin <options> <command>
+Supported Commands:
+	auth           stores pulp authentication credentials
+	cds            CDS instance management actions
+	consumer       consumer specific actions to pulp server
+	consumergroup  consumer group specific actions to pulp server
+	content        generic content specific actions to pulp server
+	distribution   distribution specific actions to pulp server
+	errata         errata specific actions to pulp server
+	filter         filter specific actions to pulp server
+	package        package specific actions to pulp server
+	packagegroup   package group specific actions to pulp server
+	permission     manage pulp permissions  
+	repo           repository specific actions to pulp server
+	repogroup      repository group specific actions to pulp server
+	role           manage pulp permission roles
+	user           user specific actions to pulp server
+
+Options:
+  -h, --help            show this help message and exit
+
+  Pulp User Account Credentials:
+    -u USERNAME, --username=USERNAME
+                        account username
+    -p PASSWORD, --password=PASSWORD
+                        account password
+
+  Pulp Server Information:
+    --host=HOST         pulp server host name
+}}}
+
+Each command has its own associated help documentation:
+
+{{{
+$ pulp-admin repo --help
+Usage: pulp-admin <options> repo <action> <options>
+Supported Actions:
+	list           list available repositories
+	info           info for a repository    
+	status         show the status of a repository
+	content        list the contents of a repository
+	create         create a repository      
+	clone          clone a repository       
+	delete         delete a repository      
+	update         update a repository      
+	sync           synchronize data to a repository from its feed
+	cancel_sync    cancel a running sync    
+	cancel_clone   cancel a running clone   
+	list_keys      list gpg keys            
+	publish        enable/disable repository being published by apache
+	add_package    associate an already uploaded package to a repository
+	remove_package remove package from the repository
+	add_errata     associate an existing errata to a repository
+	remove_errata  remove errata from the repository
+	add_file       associate an already uploaded file to a repository
+	remove_file    remove file from a repository
+	add_filters    add filters to a repository
+	remove_filters remove filters from a repository
+	generate_metadata schedule metadata generation for a repository
+	add_metadata   add a metadata type to an existing repository
+	list_metadata  list metadata type information associated to an existing repository
+	download_metadata download a metadata type if available from an existing repository
+	remove_metadata remove a metadata type from an existing repository
+	discovery      discover and create repositories
+	export         export repository content
+	cancel_export  cancel a running export  
+	add_distribution associate an already existing distribution to a repository
+	remove_distribution remove a distribution from a repository
+	add_note       add key-value note to a repository
+	delete_note    delete note from a repository
+	update_note    update a note of a respository
+	diff           diff two repositories    
+
+Options:
+  -h, --help  show this help message and exit
+}}}
+
+----
+
+== Authenticate with Pulp Server == #auth
+
+Pulp ships with a default 'admin' account defined in `/etc/pulp/pulp.conf`
+{{{
+default_login: admin
+# Highly recommend you change this with "pulp-admin user update" 
+default_password: admin
+}}}
+
+The first thing that should be done is to change the admin password using the `user update` command:
+{{{
+$ pulp-admin -u admin -p admin user update --username admin --password <new password> --name "Some Admin"
+Successfully updated [ admin ] with name [ Some Admin ]
+}}}
+
+Instead of passing the user credentials on each call to the `pulp-admin` script, the credentials can be stored in your home directory by issuing the `auth login` command:
+{{{
+$ pulp-admin auth login -u admin -p *****
+User credentials successfully stored at [/home/someadmin/.pulp]
+}}}
+
+Subsequent calls can omit the user credentials:
+{{{
+$ pulp-admin repo list
+No repositories available to list
+}}}
+
+----
+
+== Synchronize Fedora 17 == #sync
+
+Now that we are setup to issue commands to the Pulp server, lets see if we can get some content synchronized.
+
+The first step is to pick a repository to synchronize:
+
+1. Go to the mirrors list: `http://mirrors.fedoraproject.org/publiclist/`
+
+2. Choose a mirror near you and find the URL to the root of the architecture you wish to synchronize (e.g. `http://mirror.uoregon.edu/fedora/linux/releases/17/Fedora/x86_64/os/`)
+
+3. Create a repo in the Pulp server using the `pulp-admin` script. Note the `--feed` parameter denotes the type of repository to be synchronized. The type helps Pulp figure out what synchronization strategy to use when copying the content.
+{{{
+$ pulp-admin repo create --id f17-x86_64 --feed http://mirror.uoregon.edu/fedora/linux/releases/17/Fedora/x86_64/os/
+Successfully created repository [ f17-x86_64 ]
+}}}
+
+4. Now we can sync the newly created repository. You can watch this progress or CTRL+C and come back later to see its progress.
+{{{
+$ pulp-admin repo sync --id f17-x86_64 -F
+Sync for repository f17-x86_64 started
+You can safely CTRL+C this current command and it will continue
+[                                                     ] 0%
+}}}
+
+----
+
+== Register a Consumer (System) to Pulp == #consumer
+
+After content is synchronized to Pulp, the next step is to connect a system so it can start installing packages from your Pulp repository. The `pulp-consumer` is used for registration with a Pulp server. See the [wiki:UGInstallation#consumerclient Consumer Client Guide] for installation and configuration information.
+
+1. Using the `pulp-consumer` script, register the client system with the Pulp server:
+{{{
+$ sudo pulp-consumer -u admin -p ****** consumer register --id myclient
+Successfully created consumer [ myclient ]
+}}}
+
+2. Once the consumer is registered, we can see a list of possible repositories to use:
+{{{
+$ sudo pulp-consumer repo list
++------------------------------------------+
+       List of Available Repositories
++------------------------------------------+
+
+Label              	f17-x86_64               
+Name               	f17-x86_64               
+FeedURL            	http://mirror.uoregon.edu/fedora/linux/releases/17/Fedora/x86_64/os/
+FeedType           	yum                      
+Arch               	noarch                   
+Sync Schedule      	None                     
+Packages           	0                        
+Files              	0                        
+Distributions      	None                     
+Publish            	True                     
+Clones             	[]                       
+}}}
+
+3. To use a repository, it is ''bound'' to the client system. Binding a repository makes that repository available to the client system:
+{{{
+$ sudo pulp-consumer consumer bind --repoid f17-x86_64
+Successfully subscribed consumer [myclient] to repo [f17-x86_64]
+}}}
+
+4. The `pulp-consumer` script creates a repo config file at `/etc/yum.repos.d/pulp.repo` for the newly bound repository:
+{{{
+$ cat /etc/yum.repos.d/pulp.repo 
+#
+# Pulp Repositories
+# Managed by Pulp client
+#
+
+[f17-x86_64]
+name = f17-x86_64
+baseurl = https://localhost/pulp/repos/fedora/linux/releases/17/Fedora/x86_64/os
+enabled = 1
+sslverify = 0
+}}}
+
+5. At that point, the repository is available for use with `yum`:
+{{{
+$ sudo yum --disablerepo=* --enablerepo=f17-x86_64 install zsh
+...
+  Installing     : zsh-4.3.17-1.fc17.x86_64
+
+Installed:
+  zsh.x86_64 0:4.3.17-1.fc17                                                                        
+
+Complete!
+}}}
