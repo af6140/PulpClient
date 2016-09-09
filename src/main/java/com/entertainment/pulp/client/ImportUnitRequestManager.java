@@ -14,7 +14,11 @@ import java.util.Map;
  */
 public class ImportUnitRequestManager extends  BasicManager{
 
-    public static String SERVICE_PATH = "/api/v2/repositories/${rempo_id}/actions/import_upload/";
+    public static String SERVICE_PATH = "/api/v2/repositories/{repo_id}/actions/import_upload/";
+
+    public String getServicePath() {
+        return this.getPulpClientConfiguration().getServerUrl()+SERVICE_PATH;
+    }
 
     public boolean importPuppetModule(String owner, String name, String version, String uploadId,  String repoId){
         ImportUnitRequest importUnitRequest = ImportUnitRequest.getPuppetImportRequest(owner, name, version, uploadId);
@@ -31,7 +35,8 @@ public class ImportUnitRequestManager extends  BasicManager{
         Map<String,String> urlVariables = new HashMap<String,String>();
         urlVariables.put("repo_id", repoId);
         //restTemplate.postForLocation(SERVICE_PATH,importUnitRequest, urlVariables);
-        ResponseEntity<String> response = restTemplate.postForEntity(SERVICE_PATH,req,String.class, urlVariables);
+        System.out.println("req: "+ req.toString());
+        ResponseEntity<String> response = restTemplate.postForEntity(this.getServicePath(),req ,String.class, urlVariables);
         HttpStatus status_code = response.getStatusCode();
         if(status_code.is2xxSuccessful()){
             return true;

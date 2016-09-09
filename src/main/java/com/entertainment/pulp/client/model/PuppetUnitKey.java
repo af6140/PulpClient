@@ -1,5 +1,6 @@
 package com.entertainment.pulp.client.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -28,6 +29,7 @@ public class PuppetUnitKey implements UnitKey{
         this.owner = owner;
     }
 
+    @JsonIgnore
     public JsonNode getAssociationCriteriaJsonNode() {
         final JsonNodeFactory factory = JsonNodeFactory.instance;
         ObjectNode rootNode = factory.objectNode();
@@ -53,7 +55,7 @@ public class PuppetUnitKey implements UnitKey{
         rootNode.set("filters", filtersNode);
         return rootNode;
     }
-
+    @JsonIgnore
     public JsonNode getUnAssociateNewerCriteriaJsonNode(){
         final JsonNodeFactory factory = JsonNodeFactory.instance;
         ObjectNode rootNode = factory.objectNode();
